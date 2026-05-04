@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gold Sensitivity Analysis - Dr. Solmaz Safari</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 95%;
+            overflow-x: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            position: relative;
+        }
+        .input-section {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+        }
+        .input-group {
+            margin-bottom: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: baseline;
+            gap: 10px;
+        }
+        .input-group label {
+            font-weight: bold;
+            min-width: 130px;
+        }
+        .input-group input, .input-group textarea {
+            flex: 1;
+            min-width: 200px;
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .input-group textarea {
+            height: 80px;
+            resize: vertical;
+        }
+        button {
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #1a2a3a;
+        }
+        .description {
+            font-size: 12px;
+            color: #555;
+            margin-top: 5px;
+            margin-left: 135px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 20px 0;
+            font-size: 13px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #2c3e50;
+            color: white;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+        }
+        .spot-row {
+            background-color: #fff3cd !important;
+            font-weight: bold;
+        }
+        .spot-col {
+            background-color: #fff3cd !important;
+            font-weight: bold;
+        }
+        .footer {
+            margin-top: 20px;
+            text-align: right;
+            font-size: 14px;
+            color: #2c3e50;
+            border-top: 1px solid #eee;
+            padding-top: 15px;
+        }
+        .note {
+            font-size: 11px;
+            color: gray;
+            text-align: center;
+            margin-top: 10px;
+        }
+        h2 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        .info-text {
+            font-size: 14px;
+            text-align: center;
+            margin: 5px 0 15px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>📊 Gold Sensitivity Analysis (18K)</h2>
+    <div class="info-text">Enter USD and Gold Ounce values (space‑separated). The table shows 18K gold price per gram (IRR).</div>
+    
+    <div class="input-section">
+        <div class="input-group">
+            <label>🇮🇷 USD/IRR values (تومان):</label>
+            <textarea id="usdInput" placeholder="Example: 175000 180000 185000 190000 195000">175000 180000 185000 190000 195000</textarea>
+        </div>
+        <div class="input-group">
+            <label>🌍 Gold Ounce values (USD):</label>
+            <textarea id="goldInput" placeholder="Example: 3900 4200 4500 4800 5100 5600">3900 4200 4500 4800 5100 5600</textarea>
+        </div>
+        <div class="input-group">
+            <label>📌 Spot USD/IRR (تومان):</label>
+            <input type="number" id="spotUsd" value="186000">
+        </div>
+        <div class="input-group">
+            <label>📌 Spot Gold Ounce (USD):</label>
+            <input type="number" id="spotGold" value="4560">
+        </div>
+        <button onclick="generateTable()">Generate Table</button>
+    </div>
+
+    <div id="tableContainer"></div>
+    <div class="footer">
+        Prepared by Dr. Solmaz Safari
+    </div>
+    <div class="note">
+        Formula: (Gold Ounce × USD/IRR × 0.75) / 31.1034768<br>
+        Green background = above spot price, Red = below spot price. Intensity increases with divergence.
+    </div>
+</div>
+
+<script>
+    function parseNumberList(text) {
+        if (!text.trim()) return [];
+        let parts = text.trim().split(/\s+/);
+        return parts.map(p => {
+            let num = parseFloat(p);
+            return isNaN(num) ? null : num;
+        }).filter(v => v !== null);
+    }
+
+    function formatNumber(num) {
+        return num.toLocaleString('en-US');
+    }
+
+    function calculateGoldPrice(usd, goldOunce) {
+        return (goldOunce * usd * 0.75) / 31.1034768;
+    }
+
+    function getCellBgColor(price, refPrice) {
+        if (refPrice === 0) return '#ffffff';
+        let diffPercent = (price - refPrice) / refPrice * 100;
+        let intensity = Math.min(255, Math.floor(120 + Math.abs(diffPercent) * 5));
+        let r, g, b;
+        if (diffPercent > 0) {
+            r = Math.max(0, 200 - intensity);
+            g = 220;
+            b = Math.max(0, 200 - intensity);
+        } else if (diffPercent < 0) {
+            r = 220;
+            g = Math.max(0, 200 - intensity);
+            b = Math.max(0, 200 - intensity);
+        } else {
+            return '#ffffff';
+        }
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    function generateTable() {
+        const usdRaw = document.getElementById('usdInput').value;
+        const goldRaw = document.getElementById('goldInput').value;
+        const spotUsd = parseFloat(document.getElementById('spotUsd').value);
+        const spotGold = parseFloat(document.getElementById('spotGold').value);
+        
+        let usdValues = parseNumberList(usdRaw);
+        let goldValues = parseNumberList(goldRaw);
+        
+        if (usdValues.length === 0 || goldValues.length === 0) {
+            alert('Please enter at least one value for USD and Gold Ounce.');
+            return;
+        }
+        if (isNaN(spotUsd) || isNaN(spotGold)) {
+            alert('Please enter valid spot values.');
+            return;
+        }
+        
+        usdValues.sort((a,b) => a - b);
+        goldValues.sort((a,b) => a - b);
+        
+        const refPrice = calculateGoldPrice(spotUsd, spotGold);
+        
+        let html = `
+            <div style="margin: 15px 0; padding: 10px; background: #e8f4f8; border-radius: 8px; text-align: center;">
+                <strong>💰 Reference 18K Gold Price (Spot):</strong>
+                ${formatNumber(Math.round(refPrice))} IRR per gram
+                <br><span style="font-size:12px;">Based on USD ${formatNumber(spotUsd)} IRR and Gold ${formatNumber(spotGold)} USD/oz</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>USD/IRR ↓</th>
+        `;
+        for (let gold of goldValues) {
+            const isSpot = Math.abs(gold - spotGold) < 0.01;
+            html += `<th ${isSpot ? 'class="spot-col"' : ''}>${formatNumber(gold)}</th>`;
+        }
+        html += '</tr></thead><tbody>';
+        
+        for (let usd of usdValues) {
+            const isSpotRow = Math.abs(usd - spotUsd) < 0.01;
+            html += `<tr ${isSpotRow ? 'class="spot-row"' : ''}><td style="font-weight:bold;">${formatNumber(usd)}</td>`;
+            
+            for (let gold of goldValues) {
+                const price = calculateGoldPrice(usd, gold);
+                const roundedPrice = Math.round(price);
+                const bgColor = getCellBgColor(roundedPrice, refPrice);
+                const isSpotCol = Math.abs(gold - spotGold) < 0.01;
+                html += `<td style="background-color: ${bgColor}; text-align:center;" ${isSpotCol ? 'class="spot-col"' : ''}>${formatNumber(roundedPrice)}</td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</tbody></table>';
+        
+        document.getElementById('tableContainer').innerHTML = html;
+    }
+    
+    window.onload = generateTable;
+</script>
+</body>
+</html>
